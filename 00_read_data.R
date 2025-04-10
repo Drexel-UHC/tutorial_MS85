@@ -57,7 +57,7 @@ process_data <- function(path_to_data) {
            age = factor(thisage, levels = c("Infant", "1-4", "5-19", "20-34", "35-49",  "50-64", "65+")),
            deaths = deaths,
            tmean = ADtemp_pw,
-           logpop = log(pop_count), .keep = "none") |>
+           pop = pop_count, .keep = "none") |>
     arrange(across(c(country, nsalid1, date, sex, age))) |> # Order rows
     filter(!is.na(tmean)) # Remove days with missing temperature
 }
