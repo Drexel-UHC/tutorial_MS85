@@ -84,7 +84,7 @@ df <-
   list_rbind() |> # Combine dataframes for each city into one dataframe
   select(c(country, nsalid1, date, sex, age, # Unique determinant of each row
            deaths, respiratory, cardio,      # Deaths by type
-           tmean, logpop)) # Pop weighted mean daily temperature and log pop
+           tmean, pop)) # Pop weighted mean daily temperature and log pop
 
 # Write multi-city object to disk
 write_csv(df, here("data", "mort_temp.csv"))
