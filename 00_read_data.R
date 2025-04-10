@@ -62,14 +62,15 @@ process_data <- function(path_to_data) {
     filter(!is.na(tmean)) # Remove days with missing temperature
 }
 
-# Create dataframe  each city and for each mortality type and order columns
+# Create dataframe containing each city/mortality type and order columns
 df <- 
   pmap(list_datafiles,
        \(all_cause, respiratory, cardio) {
          # Variables that uniquely specify a row
          each_row <- c("nsalid1", "date", "sex", "age")
          
-         # Process data for all cause, respiratory, and cardiovascular deaths
+         # Process data from a single city for all cause, respiratory, 
+         # and cardiovascular deaths
          df1 <- map(all_cause, process_data)   |> list_rbind()
          df2 <- map(respiratory, process_data) |> list_rbind() |> select(all_of(each_row), respiratory = deaths)
          df3 <- map(cardio, process_data)      |> list_rbind() |> select(all_of(each_row), cardio = deaths)
@@ -79,101 +80,12 @@ df <-
          df1 |> 
            left_join(df2, by = each_row, keep = FALSE) |> 
            left_join(df3, by = each_row, keep = FALSE)
-           # mutate(resp = df2$deaths,
-           #        cardio = df3$deaths, .before = tmean)
-       }) |> list_rbind() |> 
+       }) |> 
+  list_rbind() |> # Combine dataframes for each city into one dataframe
   select(c(country, nsalid1, date, sex, age, # Unique determinant of each row
            deaths, respiratory, cardio,      # Deaths by type
            tmean, logpop)) # Pop weighted mean daily temperature and log pop
-df_brute
 
-# Write multi city object to disk
+# Write multi-city object to disk
 write_csv(df, here("data", "mort_temp.csv"))
 saveRDS(df,   here("data", "mort_temp.rds"))
-
-
-# Read city specific details ----------------------------------------------
-
-
-
-# Other stuff -------------------------------------------------------------
-
-df_test[[1]] |> glimpse()
-
-test_derek |> 
-  mutate(death = deaths, 
-         tmean = ADtemp_pw,
-         logpop = pop_count/1000,
-         date = lubridate::ymd(allDate),
-         dow = lubridate::wday(date, label = TRUE, abbr = FALSE),
-         year = lubridate::year(date)) |> 
-  select(all_of(varkeep)) |> 
-  filter(!is.na(tmean))
-
-
-test_derek <- 
-  read_my_data(list_datafiles[[1]]) |> 
-  mutate(maletxt = factor(male, levels = c(0, 1), labels = c("Female", "Male")),
-         thisage = factor(thisage, levels = c("Infant", "1-4", "5-19", "20-34", "35-49",  "50-64", "65+")),
-         group_series = thisage:maletxt)
-
-test_derek |>
-  select(all_of(c("nsalid1", "tmean", "date"))) |> 
-  unique()
-
-test_derek |> 
-  summarize(totaldeaths = sum(death),
-            years_of_data = length(unique(year)),
-            AvPop_in1000s = sum(exp(logpop))/(365.25*years_of_data))
-
-test_derek |> 
-  summarize(death = sum(death),
-            Pop.in1000s = sum(exp(logpop)/(365.28*length(unique(test_derek$year)))), .by = thisage)
-
-quantile(test_derek$tmean, prob = c(0, 0.01, 0.025, 0.05, 0.10, 0.25, 0.5, 0.75, 0.90, 0.95, 0.975, 0.99, 1))
-
-test_brisa <- read.my.data(list_datafiles[[1]])
-
-varkeep= c("nsalid1","death","tmean","dow","date","year","thisage","male","logpop")
-varfun = "ns"  # using natural cubic spline
-vardegree = 3  # not needed when varfun="ns" (already cubic. if we switched to "bs" then specify vardegree=2)
-
-#FUNCTION TO READ IN SAS DATASET
-read.my.data = function(datafilename, subset=FALSE, strata=NULL){ lllll
-  #values for strata should be in quotes, like: "thisage=='65+' & male==1"
-  foo=read.sas7bdat(datafilename) 
-  foo$death = foo$deaths
-  foo$tmean = foo$ADtemp_pw
-  foo$logpop = log(foo$pop_count/1000) #need to verify if population counts are in # of people or 1000's of people
-  foo$date= as.Date(foo$allDate, origin="1960-01-01")
-  foo$dow=weekdays(foo$date)
-  foo$year=format(foo$date,"%Y") 
-  
-  # keep only the rows we need
-  if(subset==TRUE){ foo = subset(foo, return(eval(parse(text=strata)))) }
-  
-  # keep only the variables we need
-  foo = subset(foo, is.na(tmean)==FALSE , select=varkeep )  
-  
-  #return:
-  foo
-}
-
-read_my_data <- function(filename, subset = FALSE, strata = NULL) {
-  filename |> 
-    haven::read_sas() |> 
-    mutate(death = deaths, 
-           tmean = ADtemp_pw,
-           logpop = pop_count/1000,
-           date = lubridate::ymd(allDate),
-           dow = lubridate::wday(date, label = TRUE, abbr = FALSE),
-           year = lubridate::year(date)) |> 
-    select(all_of(varkeep)) |> 
-    filter(!is.na(tmean))
-}
-
-ggplot(test_derek, aes(date, tmean, color = male)) +
-  geom_point()
-
-
-test_derek$thisage |> factor(levels = c("Infant", "1-4", "5-19", "20-34", "35-49",  "50-64", "65+"))
