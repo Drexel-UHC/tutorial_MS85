@@ -4,6 +4,15 @@ This folder contains all the code files needed to reproduce the findings in the 
 The files cannot be run without the mortality data, however. The mortality data cannot be made available 
 due to data use agreements with the various countries.
 
+## Files
+
+- `00_read_data.R`: Reads in and formats the data on the Drexel servers. Creates the data frame used in the city specific analysis.
+- `01_city_specific_models.R`: Runs the analysis for each city and cause of death. The resulting coefficients are used in the meta-analysis.
+- `02_meta_analysis.R`: Runs the meta-analysis on the coefficients of all cities. The resulting curves are used when estimating the risk ratios and attributable fractions.
+- `03_attributable_fractions.R`: Calculates the attributable fractions for exposure to heat and cold.
+- `04_tables.R`: Recreates all tables in [MS85](https://doi.org/10.1038/s41591-022-01872-6).
+- `05_figures.R`: Recreates all figures in [MS85](https://doi.org/10.1038/s41591-022-01872-6).
+
 The file 00.0.RunGeneric.R calls in all other files needed.
 
 Additional city-specific results and summary information can be found in an interactive web application here:
