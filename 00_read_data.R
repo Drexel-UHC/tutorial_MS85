@@ -1,5 +1,5 @@
-library("tidyverse")
-library("here")
+library(tidyverse)
+library(here)
 
 # Read metadata describing cities -----------------------------------------
 
@@ -84,7 +84,9 @@ df <-
   list_rbind() |> # Combine dataframes for each city into one dataframe
   select(c(country, nsalid1, date, sex, age, # Unique determinant of each row
            deaths, respiratory, cardio,      # Deaths by type
-           tmean, pop)) # Pop weighted mean daily temperature and log pop
+           tmean, pop)) |> # Pop weighted mean daily temperature and log pop 
+  arrange(across(c(nsalid1, date))) |> # Arrange by city and date
+  mutate(country = factor(ifelse(country %in% c("PA", "GT", "SV", "CR"), "CA", country))) # Group Central American countries
 
 # Write multi-city object to disk
 write_csv(df, here("data", "mort_temp.csv"))
