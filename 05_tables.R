@@ -82,3 +82,26 @@ list_table_1 |>
 # Table 2 -----------------------------------------------------------------
 
 
+df_EDF <- readRDS(here("data", "EDFs.rds"))
+
+df_EDF |> 
+  summarize(across(contains("range"),
+                   \(x) {
+                     glue("{med} ({lower}, {upper})",
+                          med   = round(median(x), 2),
+                          lower = round(min(x), 2),
+                          upper = round(max(x), 2))}), .by = c(cause, age)) |> 
+  gt() |> 
+  tab_header(title = "Excess death fraction associated with nonoptimal temperatures") |> 
+  tab_footnote(footnote = "Percentage of total deaths explainable by temperatures above ('All heat') or below '(All cold') the city-specific optimal temperature.",
+               location = cells_column_labels(range_total)) |> 
+  tab_footnote(footnote = "≥95th percentile of the city-specific daily temperature distribution.",
+               location = cells_column_labels(range_extreme_heat)) |> 
+  tab_footnote(footnote = "≤5th percentile of the city-specific daily temperature distribution.",
+               location = cells_column_labels(range_extreme_cold)) |> 
+  tab_options(footnotes.marks = "letters") |> 
+  cols_label(range_total = "Total",
+             range_all_heat = "All heat",
+             range_extreme_heat = "Extreme heat",
+             range_all_cold = "All cold",
+             range_extreme_cold = "Extreme cold")

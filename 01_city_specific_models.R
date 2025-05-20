@@ -44,8 +44,8 @@ analyze_city <- function(df_city, death_var = "deaths") {
 # Read in data
 df <- readRDS(here("data", "mort_temp.rds")) |> 
   arrange(across(c(nsalid1, date))) |> 
-  mutate(country = factor(ifelse(country %in% c("PA", "GT", "SV", "CR"), "CA", country))
-         ) # Group Central American countries together
+  # Group Central American countries together
+  mutate(country = factor(ifelse(country %in% c("PA", "GT", "SV", "CR"), "CA", country))) 
   
 city_names <- unique(df$nsalid1)
 
