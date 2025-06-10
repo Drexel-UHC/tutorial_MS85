@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 
-data/*.rds
-data/*.csv
+data/*
+results/*
