@@ -46,7 +46,7 @@ table_12 <- df_tbl |>
                             lower = round(quantile(city_pop, .1), 0),
                             upper = round(quantile(city_pop, .9), 0)), .by = country)
 
-# Percentage aged >= 65
+# Column 5: percentage aged >= 65
 table_13 <- df_tbl |>
   mutate(year = year(date)) |> 
   summarize(pop = first(pop), .by = c(country, nsalid1, year, sex, age)) |> 
@@ -60,7 +60,7 @@ table_13 <- df_tbl |>
                                lower = round(quantile(pct_over_65, .1), 1),
                                upper = round(quantile(pct_over_65, .9), 1)), .by = country)
 
-# Annual deaths
+# Column 6: annual deaths
 table_14 <- df_tbl |> 
   mutate(year = year(date)) |> 
   summarize(annual_deaths = sum(deaths), .by = c(country, nsalid1, year)) |> 
@@ -70,7 +70,7 @@ table_14 <- df_tbl |>
                                  lower = round(quantile(annual_deaths, .1), 0),
                                  upper = round(quantile(annual_deaths, .9), 0)), .by = country)
 
-# Mean temperature
+# Column 7: mean temperature
 table_15 <- df_tbl |> 
   summarize(tmean = first(tmean), .by = c(country, nsalid1, date)) |> 
   summarize(tmean = mean(tmean), .by = c(country, nsalid1)) |> 
@@ -79,18 +79,23 @@ table_15 <- df_tbl |>
                          lower = round(quantile(tmean, .1), 1),
                          upper = round(quantile(tmean, .9), 1)), .by = country)
 
-# Combine all tables
+# Add components of our table to a list
 list_table_1 <- list(table_11, table_12, table_13, table_14, table_15)
 
 list_table_1 |> 
+  # iteratively apply left_join to combine all tables by the country variable
   reduce(\(x, y) left_join(x, y, by = "country")) |> 
+  # Convert our table in dataframe form to a gt table object
   gt() |> 
+  # Add title
   tab_header(title = "Population, mortality, and temperature characteristics of 326 Latin American cities") |> 
+  # Add footnotes
   tab_footnote(footnote = "Median (10th, 90th percentiles).", 
                location = cells_column_labels(c(city_pop, pct_over_65, annual_deaths, tmean))) |> 
   tab_footnote(footnote = "The Central America group in this anlysis consists of cities in Guatemala, Panama, Costa Rica, and El Salvador.",
                location = cells_body(columns = country, rows = country == "CA")) |> 
   tab_options(footnotes.marks = "letters") |> 
+  # Rename column labels
   cols_label(country = "Countries in Latin America",
              n_cities = "No. of cities",
              study_period = "Study period",
@@ -102,7 +107,7 @@ list_table_1 |>
 # Table 2 -----------------------------------------------------------------
 
 # Load EDFs
-df_EDF <- readRDS(here("data", "EDFs.rds"))
+df_EDF <- readRDS(here("results", "EDFs.rds"))
 
 # Create table 2
 df_EDF |> 
