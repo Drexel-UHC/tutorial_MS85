@@ -109,25 +109,39 @@ list_table_1 |>
 # Load EDFs
 df_EDF <- readRDS(here("results", "EDFs.rds"))
 
-# Create table 2
-df_EDF |> 
-  summarize(across(contains("range"),
-                   \(x) {
-                     glue("{med} ({lower}, {upper})",
-                          med   = round(median(x), 2),
-                          lower = round(min(x), 2),
-                          upper = round(max(x), 2))}), .by = c(cause, age)) |> 
-  gt() |> 
+# Create data frame for table 2
+tbl_2 <- df_EDF |> 
+  mutate(death_type = 
+           case_when(str_detect(analysis, "deaths") ~ "All-cause",
+                     str_detect(analysis, "cardio") ~ "Cardiovascular",
+                     str_detect(analysis, "respiratory") ~ "Respiratory",
+                     .default = NA) |> factor(),
+         age_cat = 
+           ifelse(str_detect(analysis, "all_ages"),
+                  "All ages (%)",
+                  "Ages 65+ (%)") |> factor(levels = c("All ages (%)",
+                                                       "Ages 65+ (%)"))) |> 
+  pivot_wider(values_from = contains("range"), names_from = conf, names_sep = "_") |> 
+  arrange(across(c(death_type, age_cat))) |> 
+  mutate(across(where(is.numeric), \(x) round(x, 2))) |> 
+  mutate(death_type, age_cat,
+         `Total` = glue("{range_total_center} ({range_total_lower}, {range_total_upper})"),
+         `All heat` = glue("{range_all_heat_center} ({range_all_heat_lower}, {range_all_heat_upper})"),
+         `Extreme heat` = glue("{range_extreme_heat_center} ({range_extreme_heat_lower}, {range_extreme_heat_upper})"),
+         `All cold` = glue("{range_all_cold_center} ({range_all_cold_lower}, {range_all_cold_upper})"),
+         `Extreme cold` = glue("{range_extreme_cold_center} ({range_extreme_cold_lower}, {range_extreme_cold_upper})"),
+         .keep = "none")
+
+# Transform into gt table object
+tbl_2 |> 
+  gt(groupname_col = "death_type", rowname_col = "age_cat") |> 
   tab_header(title = "Excess death fraction associated with nonoptimal temperatures") |> 
   tab_footnote(footnote = "Percentage of total deaths explainable by temperatures above ('All heat') or below '(All cold') the city-specific optimal temperature.",
-               location = cells_column_labels(range_total)) |> 
+               location = cells_column_labels(Total)) |> 
   tab_footnote(footnote = "≥95th percentile of the city-specific daily temperature distribution.",
-               location = cells_column_labels(range_extreme_heat)) |> 
+             location = cells_column_labels(`Extreme heat`)) |> 
   tab_footnote(footnote = "≤5th percentile of the city-specific daily temperature distribution.",
-               location = cells_column_labels(range_extreme_cold)) |> 
-  tab_options(footnotes.marks = "letters") |> 
-  cols_label(range_total = "Total",
-             range_all_heat = "All heat",
-             range_extreme_heat = "Extreme heat",
-             range_all_cold = "All cold",
-             range_extreme_cold = "Extreme cold")
+               location = cells_column_labels(`Extreme cold`)) |> 
+  tab_options(footnotes.marks = "letters") |>
+  tab_stubhead(label = "EDF") |> 
+  cols_align("left")
