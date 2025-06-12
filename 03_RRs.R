@@ -1,6 +1,5 @@
 #source("02_meta_analysis.R")
 
-
 # Get RR at 95 temperature percentile -------------------------------------
 
 list_red_95_fit <-
@@ -22,34 +21,31 @@ list_red_95_fit <-
                          coef = model_red$coefficients,
                          vcov = model_red$vcov,
                          model.link = model$link,
-                         at = quantile(df_city$tmean, .95),
+                         at = quantile(df_city$tmean, c(0.05, .95)),
                          cen = get_MMT(pred))
              
-             list(log_RR    = RR_pred$allfit,
-                  log_RR_se = RR_pred$allse)
-           })
-       })
-
-# Save RR at 95th temp percentile for each city
-saveRDS(list_red_95_fit, here("results", "list_red_95_fit.rds"))
+             tibble(log_RR     = RR_pred$allfit,
+                    log_RR_var = RR_pred$allse^2,
+                    exposure = c('cold', 'heat'))
+           }) |> list_rbind(names_to = "nsalid1")
+       }) 
 
 # Get "average" RR for each analysis
 average_95_RR <- list_red_95_fit |> 
-  map(\(list_RR) {
-    # RRs at 95th percentile relative to MMT and associated standard errors
-    red_95_fit <- map_dbl(list_RR, \(x) x$log_RR)
-    red_95_var <- map(list_RR,     \(x) x$log_RR_se^2)
+  map(\(df_RR) {
+    # Meta-regression to get intercept term as average RR
+    red_95_heat <- mixmeta(log_RR ~ 1, S = log_RR_var, data = df_RR, subset = (exposure == "heat"))
+    red_95_cold <- mixmeta(log_RR ~ 1, S = log_RR_var, data = df_RR, subset = (exposure == "cold"))
     
-    # Meta-regression to get intcercept term as "average" RR
-    red_95_RRs_meta <- mixmeta(red_95_fit ~ 1, S = red_95_var)
-    
-    
-    tibble(RR =  exp(coef(red_95_RRs_meta)),
-           RR_lower = exp(confint(red_95_RRs_meta))[1],
-           RR_upper = exp(confint(red_95_RRs_meta))[2])
+    tibble(RR       = exp(c(coef(red_95_cold), coef(red_95_heat))),
+           RR_lower = exp(c(confint(red_95_cold)[1], confint(red_95_heat)[1])),
+           RR_upper = exp(c(confint(red_95_cold)[2], confint(red_95_heat)[2])),
+           exposure = c("cold", "heat"))
   }) |> list_rbind(names_to = "analysis")
 
-view(average_95_RR)
+average_95_RR |> 
+  filter(analysis == "all_ages_deaths") |> 
+  view()
 
 # Get slope for each degree increase above 95 percentile ------------------
 
@@ -67,7 +63,7 @@ list_red_95_99 <-
                 pred      = list_pred),
            # Calculation of said RR
            \(df_city, model, model_red, pred) {
-             RR_pred <- 
+             RR_heat <- 
                crosspred(model$cb_red,
                          coef = model_red$coefficients,
                          vcov = model_red$vcov,
@@ -75,27 +71,37 @@ list_red_95_99 <-
                          at = quantile(df_city$tmean, .99),
                          cen = quantile(df_city$tmean, .95))
              
+             RR_cold <- 
+               crosspred(model$cb_red,
+                         coef = model_red$coefficients,
+                         vcov = model_red$vcov,
+                         model.link = model$link,
+                         at = quantile(df_city$tmean, .01),
+                         cen = quantile(df_city$tmean, .05))
+             
              # Estimates for increase in risk from 95th to 99th percentile
-             list(log_RR     = RR_pred$allfit,
-                  log_RR_se  = RR_pred$allse,
-                  temp_diff = RR_pred$predvar - RR_pred$cen)
-           })
+             tibble(temp_diff  = abs(c(RR_cold$predvar - RR_cold$cen, RR_heat$predvar - RR_heat$cen)),
+                    log_RR     = c(RR_cold$allfit/temp_diff[1], RR_heat$allfit/temp_diff[2]),
+                    log_RR_var = c((RR_cold$allse/temp_diff[1])^2, (RR_heat$allse/temp_diff[2])^2),
+                    exposure = c("cold", "heat"))
+           }) |> list_rbind(names_to = "nsalid1")
        })
 
 # Get "average" increase in RR for each analysis
 average_95_99_RR <- list_red_95_99 |> 
-  map(\(list_RR) {
-    # The increase in log(RR)/temp_range and associated standard errors
-    red_95_99_fit <- map_dbl(list_RR, \(x) x$log_RR/x$temp_diff)
-    red_95_99_var <- map(list_RR, \(x) (x$log_RR_se/x$temp_diff)^2)
+  map(\(df_RR) {
+    # Meta-regression to get intercept term as average increase in RR
+    red_95_99_heat <- mixmeta(log_RR ~ 1, S = log_RR_var, data = df_RR, subset = (exposure == "heat"))
+    red_95_99_cold <- mixmeta(log_RR ~ 1, S = log_RR_var, data = df_RR, subset = (exposure == "cold"))
     
-    # Meta-regression to get intercept term as "average" increase in RR
-    red_95_99_RRs_meta <- mixmeta(red_95_99_fit ~ 1, S = red_95_99_var)
+    # Get average increase in RR per degree change in temperature
+    tibble(RR       = exp(c(coef(red_95_99_cold), coef(red_95_99_heat))),
+           RR_lower = exp(c(confint(red_95_99_cold)[1], confint(red_95_99_heat)[1])),
+           RR_upper = exp(c(confint(red_95_99_cold)[2], confint(red_95_99_heat)[2])),
+           exposure = c("cold", "heat"))
     
-    
-    tibble(RR =  exp(coef(red_95_99_RRs_meta)),
-           RR_lower = exp(confint(red_95_99_RRs_meta))[1],
-           RR_upper = exp(confint(red_95_99_RRs_meta))[2])
   }) |> list_rbind(names_to = "analysis")
 
-view(average_95_99_RR)
+average_95_99_RR |> 
+  filter(analysis == "all_ages_deaths") |> 
+  view()
