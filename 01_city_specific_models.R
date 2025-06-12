@@ -4,7 +4,6 @@ library(here)
 library(SALURhelper)
 library(dlnm); library(gnm); library(splines); library(mgcv)
 
-
 # Helper functions --------------------------------------------------------
 
 # Analyze a given city with specified parameters
