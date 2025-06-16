@@ -11,17 +11,21 @@ list_red_95_fit <-
          pmap(
            # Information to get RR at 95th percentile relative to MMT for each city
            list(df_city   = list_city_df,
+                #df_meta   = list_metadata,
                 model     = list_model,
                 model_red = list_model_red,
                 pred      = list_pred),
            # Calculation of said RR
-           \(df_city, model, model_red, pred) {
+           \(df_city,
+             #df_meta, 
+             model, model_red, pred) {
              RR_pred <- 
                crosspred(model$cb_red,
                          coef = model_red$coefficients,
                          vcov = model_red$vcov,
                          model.link = model$link,
                          at = quantile(df_city$tmean, c(0.05, .95)),
+                         #at = c(df_meta$p5, df_meta$p90),
                          cen = get_MMT(pred))
              
              tibble(log_RR     = RR_pred$allfit,
@@ -58,18 +62,24 @@ list_red_95_99 <-
          pmap(
            # Information to get RR at 95th percentile relative to MMT for each city
            list(df_city   = list_city_df,
+                #df_meta   = list_metadata,
                 model     = list_model,
                 model_red = list_model_red,
                 pred      = list_pred),
            # Calculation of said RR
-           \(df_city, model, model_red, pred) {
+           \(df_city, 
+             #df_meta, 
+             model, model_red, pred) {
              RR_heat <- 
                crosspred(model$cb_red,
                          coef = model_red$coefficients,
                          vcov = model_red$vcov,
                          model.link = model$link,
                          at = quantile(df_city$tmean, .99),
-                         cen = quantile(df_city$tmean, .95))
+                         cen = quantile(df_city$tmean, .95)
+                         # at = df_meta$p99,
+                         # cen = df_meta$p95
+                         )
              
              RR_cold <- 
                crosspred(model$cb_red,
@@ -77,7 +87,10 @@ list_red_95_99 <-
                          vcov = model_red$vcov,
                          model.link = model$link,
                          at = quantile(df_city$tmean, .01),
-                         cen = quantile(df_city$tmean, .05))
+                         cen = quantile(df_city$tmean, .05)
+                         # at = df_meta$p1,
+                         # cen = df_meta$p5
+                         )
              
              # Estimates for increase in risk from 95th to 99th percentile
              tibble(temp_diff  = abs(c(RR_cold$predvar - RR_cold$cen, RR_heat$predvar - RR_heat$cen)),
