@@ -3,24 +3,22 @@ library(mixmeta)
 
 # Set up meta-regression --------------------------------------------------
 
-# Read in extra variables for meta-regression
-df_metadata <- readRDS(here("data", "metadata.rds")) #|> 
-  #mutate(SALID1 = factor(SALID1)) |> 
-  #select(c(SALID1, KP_level1_Interpretation))
-
-# Predictors by city
+# Predictors by city with pre-calculated metadata
 df_meta <- df_metadata |>
-  mutate(nsalid1 = factor(SALID1),
+  mutate(nsalid1 = nsalid1,
          p50 = p50,
          range_high = max - p50,
          range_low  = min - p50,
-         country = factor(country_num),
+         country = country_num,
          KP_level1_Interpretation = KP_level1_Interpretation, 
          .keep = "none")
+
+# predictors by city with manually calculated metadata
+# df_meta <- df |> 
   # summarize(p50 = median(tmean),
   #           range_high = max(tmean) - p50,
   #           range_low  = min(tmean) - p50,
-  #           country = first(country), .by = nsalid1) |> 
+  #           country = first(country), .by = nsalid1) |>
   # left_join(df_metadata, by = join_by(nsalid1 == SALID1))
 
 # List of matrices of coefficients (response of meta-regression)
