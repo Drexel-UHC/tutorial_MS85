@@ -2,17 +2,21 @@ library(tidyverse)
 library(glue)
 library(here)
 library(SALURhelper)
-library(dlnm); library(gnm); library(splines); library(mgcv)
+library(dlnm); library(gnm); library(splines)
 
 # Helper functions --------------------------------------------------------
 
 # Analyze a given city with specified parameters
-analyze_city <- function(df_city, death_var = "deaths") {
+analyze_city <- function(df_city, death_var = "deaths", df_meta = NULL) {
   
   # Specify knots for given city
   n_lag <- 21
-  pred_knots <- quantile(df_city$tmean, c(.1, .75, .9), na.rm = TRUE)
   lag_knots <- logknots(n_lag, nk = 3)
+  
+  # If metadata temperature percentiles are provided, use those, otherwise, 
+  # temperature percentiles are calculate manually
+  pred_knots <- quantile(df_city$tmean, c(.1, .75, .9), na.rm = TRUE) # manual
+  if(!is.null(df_meta)) pred_knots <- c(df_meta$p10, df_meta$p75, df_meta$p90) # pre-calcualted
   
   # Define cross-basis
   cbt <- crossbasis(df_city$tmean,
@@ -29,11 +33,13 @@ analyze_city <- function(df_city, death_var = "deaths") {
                eliminate = strata,
                data = df_city)
   
+  # Object this function returns, note that model objects can be extremely large.
+  # This list contains only the relevant information calculated from the model fitting.
   list(cb = cbt,
        cb_red = cbt_red,
        pred_seq = seq(min(df_city$tmean),
                       max(df_city$tmean), 
-                      length.out = 100), # Number sequence for crosspred at param
+                      length.out = 100), # Number sequence for crosspred `at` parameter
        coef = coef(model), 
        vcov = vcov(model),
        link = model$family$link,
@@ -62,6 +68,7 @@ city_pred <- function(city_model) {
 
 # Read in data
 df <- readRDS(here("data", "mort_temp.rds"))
+df_metadata <- readRDS(here("data", "metadata.rds"))
 
 # Extract city names  
 city_names <- unique(df$nsalid1)
@@ -94,6 +101,11 @@ list_city_df_65 <- df |>
       mutate(strata = factor(paste(year(date), month(date), wday(date, label = TRUE), sep = ":")))
   }) |> set_names(city_names) # Label this list of dataframes with the city names
 
+# Meta data, split by city
+list_metadata <- df_metadata |> 
+  group_by(nsalid1) |> 
+  group_split() |> 
+  set_names(city_names)
 
 # Analyze all cities ------------------------------------------------------
 
@@ -113,9 +125,9 @@ list_city_model <-
   pmap(df_analyses, 
        \(data_set, death_var) {
          # Map over each city in chosen data set
-         data_set |> 
-           map(\(df_city) {
-             analyze_city(df_city, death_var)
+         map2(data_set, list_metadata,
+              \(df_city, df_meta) {
+                analyze_city(df_city, death_var, df_meta)
            })
         }) |> set_names(name_analyses)
 
