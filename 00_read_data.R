@@ -29,9 +29,11 @@ metadata <-
   #left_join(citycodes, by = join_by(nsalid1 == SALID1)) |> 
   filter(hasMortality == 1,
          inAIC == 1) |> 
-  mutate(KP_Precip_Interpret = as_factor(KP_Precip_Interpret),
-         filename = paste0("c", nsalid1, ".sas7bdat")) |> 
-  arrange(nsalid1)
+  mutate(across(contains("ECDF"), as_factor),
+         across(contains("KP_"), as_factor),
+         across(c(nsalid1, country_num, country, hasMortality), as_factor)) |> 
+  select(-c(SALID1, `_TYPE_`, `_FREQ_`)) |> 
+  select(nsalid1, everything())
 
 # Save aggregated metadata
 write_csv(metadata, here("data", "metadata.csv"))
